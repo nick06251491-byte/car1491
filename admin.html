@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>車輛管理</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>body{margin:0}.pagew{max-width:860px;margin:0 auto;padding-bottom:100px}</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function(){
+var SERIES=["轎車","旅行","休旅"];
+var STATUS={sale:"現售中",soon:"即將入庫",sold:"已售出"};
+var root=document.getElementById("root");
+var cfg=load();
+var S=null,sha=null,dirty=false,form=null,siteOpen=false,msg="",busy=false,previews={};
+
+function load(){try{return JSON.parse(localStorage.getItem("gh_cfg")||"null")}catch(e){return null}}
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function uid(){return "c"+Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function b64enc(str){return btoa(unescape(encodeURIComponent(str)))}
+function b64dec(b){return decodeURIComponent(escape(atob(b.replace(/\n/g,""))))}
+function thumb(n){return previews[n]||("https://raw.githubusercontent.com/"+cfg.owner+"/"+cfg.repo+"/"+cfg.branch+"/images/"+encodeURIComponent(n))}
+function path(p){return p}
+
+function gh(method,p,body){
+  return fetch("https://api.github.com/repos/"+cfg.owner+"/"+cfg.repo+"/contents/"+p.split("/").map(encodeURIComponent).join("/")+(method==="GET"?"?ref="+encodeURIComponent(cfg.branch)+"&t="+Date.now():""),{
+    method:method,headers:{"Authorization":"Bearer "+cfg.token,"Accept":"application/vnd.github+json"},body:body?JSON.stringify(body):undefined
+  }).then(function(r){return r.json().then(function(j){if(!r.ok){var e=new Error(j.message||r.status);e.status=r.status;throw e}return j})});
+}
+function loadData(){
+  msg="讀取中…";render();
+  return gh("GET",path("cars.json")).then(function(j){S=JSON.parse(b64dec(j.content));sha=j.sha;msg=""}).catch(function(e){
+    if(e.status===404){S={site:{name:"BMW 新安中古車",tagline:"",about:"",phone:"",line:"",address:"",hours:""},cars:[]};sha=null;msg=""}
+    else{S=null;msg=e.status===401?"Token 無效或已過期，請重新登入。":e.status===404?"":"讀取失敗："+e.message}
+  }).then(render);
+}
+function save(){
+  if(busy)return;busy=true;msg="儲存中…";render();
+  var body={message:"更新車輛資料",content:b64enc(JSON.stringify(S,null,1)),branch:cfg.branch};
+  if(sha)body.sha=sha;
+  gh("PUT",path("cars.json"),body).then(function(j){sha=j.content.sha;dirty=false;busy=false;msg="已儲存。網站大約 1～2 分鐘後更新。";render()}).catch(function(e){
+    busy=false;msg=e.status===409?"檔案剛被其他地方更新，請重新整理頁面再改。":e.status===403||e.status===404?"沒有寫入權限，請確認 Token 有這個 repo 的 Contents 讀寫權限。":"儲存失敗："+e.message;render();
+  });
+}
+function shrink(file){
+  return new Promise(function(res,rej){
+    var u=URL.createObjectURL(file),im=new Image();
+    im.onload=function(){var k=Math.min(1,1600/Math.max(im.width,im.height));var c=document.createElement("canvas");c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext("2d").drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(function(b){b?res(b):rej(new Error("encode"))},"image/jpeg",0.85)};
+    im.onerror=function(){URL.revokeObjectURL(u);rej(new Error("load"))};im.src=u;
+  });
+}
+function blobB64(b){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(String(r.result).split(",")[1])};r.onerror=rej;r.readAsDataURL(b)})}
+function uploadPhoto(file){
+  var name=uid()+".jpg";
+  return shrink(file).then(function(b){previews[name]=URL.createObjectURL(b);return blobB64(b)}).then(function(data){
+    return gh("PUT",path("images/"+name),{message:"新增照片",content:data,branch:cfg.branch})}).then(function(){return name});
+}
+
+function readForm(f,el){
+  var d=new FormData(el);
+  f.model=(d.get("model")||"").trim();f.series=d.get("series");f.status=d.get("status");
+  f.year=(d.get("year")||"").trim();f.reg=(d.get("reg")||"").trim();f.mileage=(d.get("mileage")||"").trim();
+  f.color=(d.get("color")||"").trim();f.price=(d.get("price")||"").trim();
+  f.tags=(d.get("tags")||"").split(/[,，、]/).map(function(t){return t.trim()}).filter(Boolean);
+  f.desc=(d.get("desc")||"").trim();
+}
+function carForm(f){
+  var opts=function(o,v){return o.map(function(x){return '<option'+(x===v?' selected':'')+'>'+esc(x)+'</option>'}).join("")};
+  return '<div class="ov"><div class="dlg narrow"><form class="form" id="carform"><h2>'+(f.isNew?'新增車輛':'編輯車輛')+'</h2>'+
+   '<label class="full">車款名稱<input name="model" required value="'+esc(f.model)+'" placeholder="例：BMW 320i M Sport"></label>'+
+   '<label>分類<select name="series">'+opts(SERIES,f.series)+'</select></label>'+
+   '<label>狀態<select name="status">'+Object.keys(STATUS).map(function(k){return '<option value="'+k+'"'+(k===f.status?' selected':'')+'>'+STATUS[k]+'</option>'}).join("")+'</select></label>'+
+   '<label>出廠年份<input name="year" inputmode="numeric" value="'+esc(f.year)+'" placeholder="2022"></label>'+
+   '<label>領牌年月<input name="reg" value="'+esc(f.reg)+'" placeholder="2022/06"></label>'+
+   '<label>里程數（公里）<input name="mileage" inputmode="numeric" value="'+esc(f.mileage)+'" placeholder="35000"></label>'+
+   '<label>車色<input name="color" value="'+esc(f.color)+'" placeholder="礦石灰"></label>'+
+   '<label>售價（萬元，留空顯示「價格洽詢」）<input name="price" inputmode="decimal" value="'+esc(f.price)+'" placeholder="128.8"></label>'+
+   '<label>標籤（用逗號分隔）<input name="tags" value="'+esc((f.tags||[]).join(", "))+'" placeholder="原廠保固, 單一車主"></label>'+
+   '<label class="full">車況說明 / 配備<textarea name="desc">'+esc(f.desc)+'</textarea></label>'+
+   '<div class="full"><div class="hint" style="margin-bottom:6px">照片（第一張為封面，選好檔案會立刻上傳）</div><div class="pgrid">'+
+   (f.photos||[]).map(function(n,i){return '<div class="pitem"><img src="'+esc(thumb(n))+'" alt=""><div class="c"><button type="button" data-act="cover" data-i="'+i+'">'+(i===0?'封面':'設封面')+'</button><button type="button" data-act="rmphoto" data-i="'+i+'">移除</button></div></div>'}).join("")+
+   '</div><input type="file" id="files" accept="image/*" multiple style="margin-top:8px"><div class="hint" id="upmsg"></div></div>'+
+   '<div class="fact"><span class="err" id="ferr"></span><button type="button" class="btn" data-act="cancelform">取消</button><button type="submit" class="btn primary">確定</button></div></form></div></div>';
+}
+function siteForm(){
+  var s=S.site;
+  var f=function(k,l,ph,full){return '<label'+(full?' class="full"':'')+'>'+l+'<input name="'+k+'" value="'+esc(s[k])+'" placeholder="'+esc(ph||"")+'"></label>'};
+  return '<div class="ov"><div class="dlg narrow"><form class="form" id="siteform"><h2>網站設定</h2>'+f("name","網站名稱","",1)+f("tagline","一句話介紹","",1)+
+   '<label class="full">關於我<textarea name="about">'+esc(s.about)+'</textarea></label>'+f("phone","電話","0900-000-000")+f("line","LINE 連結","https://lin.ee/...")+f("hours","服務時間","週一至週六 10:00–20:00")+f("address","展示中心地址","")+
+   '<div class="fact"><button type="button" class="btn" data-act="cancelform">取消</button><button type="submit" class="btn primary">確定</button></div></form></div></div>';
+}
+function loginView(){
+  var c=cfg||{owner:"",repo:"",branch:"main",token:""};
+  return '<form class="login" id="login"><h1>車輛管理登入</h1><p class="hint" style="margin:0">資料只存在這台裝置的瀏覽器，不會傳到 GitHub 以外的地方。</p>'+
+   '<label>GitHub 帳號<input name="owner" required value="'+esc(c.owner)+'" autocapitalize="off"></label>'+
+   '<label>Repository 名稱<input name="repo" required value="'+esc(c.repo)+'" autocapitalize="off"></label>'+
+   '<label>分支<input name="branch" required value="'+esc(c.branch)+'" autocapitalize="off"></label>'+
+   '<label>Access Token<input name="token" type="password" required value="'+esc(c.token)+'" autocomplete="off"></label>'+
+   '<button class="btn primary" type="submit">登入</button><div class="err">'+esc(msg)+'</div></form>';
+}
+function render(){
+  if(!cfg){root.innerHTML=loginView();return}
+  if(!S){root.innerHTML='<div class="pagew wrap" style="padding:24px 0"><p>'+esc(msg||"讀取中…")+'</p><button class="btn" data-act="logout">重新登入</button></div>';return}
+  var cars=S.cars.slice().sort(function(a,b){return (b.created||0)-(a.created||0)});
+  var h='<div class="pagew wrap"><div class="tb"><h1>車輛管理</h1><button class="btn" data-act="site">網站設定</button><button class="btn primary" data-act="new">＋新增車輛</button></div>'+
+   (cars.length?cars.map(function(c){return '<div class="arow">'+((c.photos&&c.photos[0])?'<img src="'+esc(thumb(c.photos[0]))+'" alt="">':'<img alt="">')+'<div class="t"><b>'+esc(c.model)+'</b><span>'+esc(c.series)+' · '+STATUS[c.status]+' · '+(c.price===""||c.price==null?'價格洽詢':c.price+' 萬')+'</span></div><button class="btn sm" data-act="edit" data-id="'+esc(c.id)+'">編輯</button><button class="btn sm danger" data-act="del" data-id="'+esc(c.id)+'">刪除</button></div>'}).join(""):'<p class="hint">還沒有車輛，按右上角「＋新增車輛」。</p>')+
+   '<p class="hint"><a href="index.html" target="_blank">查看公開網站</a> · <button class="btn sm" data-act="logout">登出</button></p></div>'+
+   '<div class="abar"><div class="wrap"><span class="msg">'+(msg?esc(msg):dirty?'有尚未儲存的變更。':'已是最新。')+'</span><button class="btn primary" data-act="save"'+((!dirty||busy)?' disabled':'')+'>儲存並發佈</button></div></div>';
+  if(form)h+=carForm(form);
+  if(siteOpen)h+=siteForm();
+  root.innerHTML=h;
+}
+
+root.addEventListener("click",function(e){
+  var t=e.target.closest("[data-act]");if(!t)return;var a=t.dataset.act;
+  if(a==="logout"){localStorage.removeItem("gh_cfg");cfg=null;S=null;msg="";render()}
+  else if(a==="new"){form={isNew:true,id:uid(),model:"",series:"轎車",status:"sale",year:"",reg:"",mileage:"",color:"",price:"",tags:[],desc:"",photos:[]};render()}
+  else if(a==="edit"){var c=S.cars.filter(function(x){return x.id===t.dataset.id})[0];form=JSON.parse(JSON.stringify(c));form.price=c.price==null?"":String(c.price);render()}
+  else if(a==="del"){if(t.dataset.sure){S.cars=S.cars.filter(function(x){return x.id!==t.dataset.id});dirty=true;msg="";render()}else{t.dataset.sure="1";t.textContent="再按一次確認"}}
+  else if(a==="cancelform"){form=null;siteOpen=false;render()}
+  else if(a==="cover"){readForm(form,document.getElementById("carform"));form.photos.unshift(form.photos.splice(+t.dataset.i,1)[0]);render()}
+  else if(a==="rmphoto"){readForm(form,document.getElementById("carform"));form.photos.splice(+t.dataset.i,1);render()}
+  else if(a==="site"){siteOpen=true;render()}
+  else if(a==="save"){save()}
+});
+root.addEventListener("change",function(e){
+  if(e.target.id!=="files"||!form)return;
+  var files=[].slice.call(e.target.files),m=document.getElementById("upmsg"),f=form,n=0,bad=0;
+  readForm(f,document.getElementById("carform"));m.textContent="上傳中…";
+  files.reduce(function(p,file){return p.then(function(){return uploadPhoto(file)}).then(function(name){f.photos.push(name);n++;m.textContent="已上傳 "+n+"/"+files.length}).catch(function(){bad++})},Promise.resolve()).then(function(){if(form===f){render();if(bad){document.getElementById("upmsg").textContent=bad+" 張上傳失敗，請再試一次。"}}});
+});
+root.addEventListener("submit",function(e){
+  e.preventDefault();var id=e.target.id;
+  if(id==="login"){
+    var d=new FormData(e.target);cfg={owner:d.get("owner").trim(),repo:d.get("repo").trim(),branch:d.get("branch").trim(),token:d.get("token").trim()};
+    try{localStorage.setItem("gh_cfg",JSON.stringify(cfg))}catch(x){}
+    loadData();
+  }else if(id==="carform"){
+    var f=form;readForm(f,e.target);
+    if(!f.model){document.getElementById("ferr").textContent="請填寫車款名稱。";return}
+    var num=function(v){if(v==="")return "";var n=Number(String(v).replace(/,/g,""));return isNaN(n)?"":n};
+    var old=S.cars.filter(function(c){return c.id===f.id})[0];
+    var rec={id:f.id,model:f.model,series:f.series,status:f.status,year:f.year,reg:f.reg,mileage:num(f.mileage),color:f.color,price:num(f.price),tags:f.tags,desc:f.desc,photos:f.photos,created:(old&&old.created)||Date.now()};
+    S.cars=old?S.cars.map(function(c){return c.id===rec.id?rec:c}):S.cars.concat(rec);
+    form=null;dirty=true;msg="";render();
+  }else if(id==="siteform"){
+    var d2=new FormData(e.target);["name","tagline","about","phone","line","hours","address"].forEach(function(k){S.site[k]=(d2.get(k)||"").trim()});
+    if(!S.site.name)S.site.name="BMW 新安中古車";
+    siteOpen=false;dirty=true;msg="";render();
+  }
+});
+window.addEventListener("beforeunload",function(e){if(dirty){e.preventDefault();e.returnValue=""}});
+
+if(cfg)loadData();else render();
+})();
+</script>
+</body>
+</html>
