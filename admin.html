@@ -90,7 +90,7 @@ function carForm(f){
 function siteForm(){
   var s=S.site;
   var f=function(k,l,ph,full){return '<label'+(full?' class="full"':'')+'>'+l+'<input name="'+k+'" value="'+esc(s[k])+'" placeholder="'+esc(ph||"")+'"></label>'};
-  return '<div class="ov"><div class="dlg narrow"><form class="form" id="siteform"><h2>網站設定</h2>'+f("name","網站名稱","",1)+f("tagline","一句話介紹","",1)+
+  return '<div class="ov"><div class="dlg narrow"><form class="form" id="siteform"><h2>網站設定</h2>'+f("name","網站名稱","",1)+f("tagline","一句話介紹","",1)+f("heading","首頁大標題","找到你的下一台汽車",1)+
    '<label class="full">關於我<textarea name="about">'+esc(s.about)+'</textarea></label>'+f("phone","電話","0900-000-000")+f("line","LINE 連結","https://lin.ee/...")+f("hours","服務時間","週一至週六 10:00–20:00")+f("address","展示中心地址","")+
    '<div class="fact"><button type="button" class="btn" data-act="cancelform">取消</button><button type="submit" class="btn primary">確定</button></div></form></div></div>';
 }
@@ -149,7 +149,7 @@ root.addEventListener("submit",function(e){
     S.cars=old?S.cars.map(function(c){return c.id===rec.id?rec:c}):S.cars.concat(rec);
     form=null;dirty=true;msg="";render();
   }else if(id==="siteform"){
-    var d2=new FormData(e.target);["name","tagline","about","phone","line","hours","address"].forEach(function(k){S.site[k]=(d2.get(k)||"").trim()});
+    var d2=new FormData(e.target);["name","tagline","heading","about","phone","line","hours","address"].forEach(function(k){S.site[k]=(d2.get(k)||"").trim()});
     if(!S.site.name)S.site.name="BMW 新安中古車";
     siteOpen=false;dirty=true;msg="";render();
   }
