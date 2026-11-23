@@ -1,12 +1,12 @@
 {
  "site": {
-  "name": "BMW 新安中古車",
-  "tagline": "新安中古車・優質中古車",
-  "about": "在這裡介紹你自己和服務。",
-  "phone": "",
-  "line": "",
-  "address": "",
-  "hours": ""
+  "name": "新安汽車",
+  "tagline": "優質中古車",
+  "about": "10年優質車行",
+  "phone": "0963007625",
+  "line": "https://line.me/ti/p/5mlOjtdF75",
+  "address": "新安街208號",
+  "hours": "週一到五早上9:00到17:00"
  },
  "cars": [
   {
@@ -24,7 +24,28 @@
    "photos": [
     "cmwt06a8i6wwo.jpg",
     "cmwt06c1vusyz.jpg",
-    "cmwt06dpk64ie.jpg"
+    "cmwt06dpk64ie.jpg",
+    "cmwt06gpkgvbp.jpg",
+    "cmwt06hx9n8gh.jpg",
+    "cmwt06jed7riv.jpg",
+    "cmwt06l297jdm.jpg",
+    "cmwt06mssxibl.jpg",
+    "cmwt06ogjkjps.jpg",
+    "cmwt06pvldvoh.jpg",
+    "cmwt06raz1ko0.jpg",
+    "cmwt06syqrheo.jpg",
+    "cmwt06uxlwg74.jpg",
+    "cmwt06wr48xcr.jpg",
+    "cmwt06ykn9hxj.jpg",
+    "cmwt070v5q4hk.jpg",
+    "cmwt072ogyeul.jpg",
+    "cmwt074eybro0.jpg",
+    "cmwt076mperhk.jpg",
+    "cmwt078g88e97.jpg",
+    "cmwt079y4wnao.jpg",
+    "cmwt07bm4f37w.jpg",
+    "cmwt07dcm93i4.jpg",
+    "cmwt07fioug3j.jpg"
    ],
    "created": 1795422458816
   }
