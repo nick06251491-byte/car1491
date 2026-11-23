@@ -1,1 +1,32 @@
-{"site":{"name":"BMW 新安中古車","tagline":"新安中古車・優質中古車","about":"在這裡介紹你自己和服務。","phone":"","line":"","address":"","hours":""},"cars":[]}
+{
+ "site": {
+  "name": "BMW 新安中古車",
+  "tagline": "新安中古車・優質中古車",
+  "about": "在這裡介紹你自己和服務。",
+  "phone": "",
+  "line": "",
+  "address": "",
+  "hours": ""
+ },
+ "cars": [
+  {
+   "id": "cmwt03uq8l9wi",
+   "model": "BMW X6",
+   "series": "休旅",
+   "status": "sale",
+   "year": "2023",
+   "reg": "",
+   "mileage": 14224,
+   "color": "黑",
+   "price": 285,
+   "tags": [],
+   "desc": "",
+   "photos": [
+    "cmwt06a8i6wwo.jpg",
+    "cmwt06c1vusyz.jpg",
+    "cmwt06dpk64ie.jpg"
+   ],
+   "created": 1795422458816
+  }
+ ]
+}
