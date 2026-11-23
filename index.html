@@ -74,7 +74,7 @@ function render(){
   var st=[["all","全部"],["sale","現售中"],["soon","即將入庫"],["sold","已售出"]].map(function(x){return '<button class="chip" aria-pressed="'+(ui.status===x[0])+'" data-act="status" data-v="'+x[0]+'">'+x[1]+'</button>'}).join("");
   var empty=S.cars.length===0?'<div class="empty"><b>車輛即將上架</b>請稍後再回來看看，或直接聯絡我們。</div>':'<div class="empty"><b>沒有符合的車</b>換個分類或清除搜尋看看。</div>';
   var html='<header class="top"><div class="wrap"><div class="brand">'+esc(s.name)+'<small>'+esc(s.tagline)+'</small></div><nav><a href="#cars">車輛</a><a href="#loan">貸款試算</a><a href="#contact">聯絡</a></nav></div></header>'+
-   '<main class="wrap"><section class="hero"><h1>找到你的下一台 故事</h1><p>'+esc(s.tagline)+'。每台車都附照片與基本資料，看到喜歡的直接聯絡預約賞車。</p>'+
+   '<main class="wrap"><section class="hero"><h1>'+esc(s.heading||"找到你的下一台汽車")+'</h1><p>'+esc(s.tagline)+'。每台車都附照片與基本資料，看到喜歡的直接聯絡預約賞車。</p>'+
    '<div class="stats num"><div><b>'+cnt("sale")+'</b>現售中</div><div><b>'+cnt("soon")+'</b>即將入庫</div><div><b>'+cnt("sold")+'</b>已售出</div></div></section>'+
    '<section id="cars" class="filters"><div class="row">'+chips+'</div><div class="row">'+st+'<input class="search" id="q" type="search" placeholder="搜尋車款、車色、標籤" value="'+esc(ui.q)+'" aria-label="搜尋"><span class="count num">'+list.length+' 台</span></div></section>'+
    '<section class="grid" id="grid">'+(list.length?list.map(card).join(""):empty)+'</section>'+
