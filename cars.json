@@ -787,7 +787,7 @@
   {
    "id": "cmwtd2nd5zxr4",
    "model": "Nissan Livina 行家皮椅版1.6",
-   "series": "休旅",
+   "series": "轎車",
    "status": "sale",
    "year": "2019",
    "reg": "",
@@ -1428,7 +1428,7 @@
   {
    "id": "cmwtgvfsuueft",
    "model": "Nissan Livina行家版1.6",
-   "series": "休旅",
+   "series": "轎車",
    "status": "sale",
    "year": "2014",
    "reg": "",
@@ -1503,7 +1503,7 @@
   {
    "id": "cmwtgvfsueday",
    "model": "V40 Cross Country D2豪華版1.6D",
-   "series": "旅行",
+   "series": "休旅",
    "status": "sale",
    "year": "2014",
    "reg": "",
@@ -1667,7 +1667,7 @@
   {
    "id": "cmwtgxjnmsjj3",
    "model": "BMW Active Tourer 218i 1.5t",
-   "series": "旅行",
+   "series": "休旅",
    "status": "sale",
    "year": "2017",
    "reg": "",
@@ -1991,7 +1991,7 @@
   {
    "id": "cmwtgzu6d5wuy",
    "model": "Ford Focus Active 任性版1.5t",
-   "series": "轎車",
+   "series": "休旅",
    "status": "sale",
    "year": "2022",
    "reg": "",
