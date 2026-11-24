@@ -1255,6 +1255,8 @@
   {
    "id": "cmwtd2nd5l5br",
    "model": "Skoda Kamiq 豪華動能版1.0tsi",
+   "origin": "進口",
+   "brand": "Skoda",
    "series": "休旅",
    "status": "sale",
    "year": "2023",
@@ -1287,9 +1289,7 @@
     "cmwtd1kjlcr35.jpg",
     "cmwtd1kjl5vib.jpg"
    ],
-   "created": 1795444122580,
-   "brand": "Skoda",
-   "origin": "進口"
+   "created": 1795444122580
   },
   {
    "id": "cmwtgvfstoom2",
@@ -1623,6 +1623,8 @@
   {
    "id": "cmwtgvfsu6bp5",
    "model": "Smart Forfour 52kW Pure 1.0",
+   "origin": "進口",
+   "brand": "Smart",
    "series": "掀背",
    "status": "sale",
    "year": "2015",
@@ -1655,9 +1657,7 @@
     "cmwtguk6w895m.jpg",
     "cmwtguk6wy6b3.jpg"
    ],
-   "created": 1795450504646,
-   "brand": "Smart",
-   "origin": "進口"
+   "created": 1795450504646
   },
   {
    "id": "cmwtgxjnmn9zz",
@@ -2007,12 +2007,14 @@
   {
    "id": "cmwtgzu6dtntd",
    "model": "Skoda Kamiq 豪華動能版1.0tsi",
+   "origin": "進口",
+   "brand": "Skoda",
    "series": "休旅",
    "status": "sale",
    "year": "2021",
    "reg": "",
    "mileage": 48406,
-   "color": "銀",
+   "color": "灰",
    "price": 43.8,
    "tags": [],
    "desc": "售 43.8 萬【2021 Skoda Kamiq 豪華動能版1.0tsi】預算抓在小休旅、又希望安全輔助不少，這台 Kamiq 可以來看看。1.0 渦輪三缸 110 匹，市區起步輕鬆。歡迎來電或 LINE 約看車。\n\n✅ 前車變慢自動跟慢，附車道維持\n✅ 盲點警示\n✅ 9 個氣囊，歐洲 NCAP 五星\n✅ 感應式電動尾門\n\n■ 車輛資訊\n年份 | 2021年\n車型 | Skoda Kamiq 豪華動能版1.0tsi\n里程 | 48,406 公里\n售價 | 43.8 萬\n動力 | 1.0 渦輪三缸\n變速箱 | DSG 7 速雙離合器\n最大馬力 | 110 匹\n最大扭力 | 20.4 公斤米\n\n■ 精選配備\n自動跟車 | 車道維持\n盲點警示 | 9 個氣囊\n感應式電動尾門 | 免鑰匙啟閉\nCarPlay | Android Auto\n8 吋螢幕 | 雙區恆溫空調\nPM2.5 與花粉濾網 | 後座出風口\n車門雨傘收納槽",
@@ -2041,9 +2043,7 @@
     "cmwtgyzwf1iuo.jpg",
     "cmwtgyzwfve0c.jpg"
    ],
-   "created": 1795450709893,
-   "brand": "Skoda",
-   "origin": "進口"
+   "created": 1795450709893
   },
   {
    "id": "cmwtgzu6dy436",
