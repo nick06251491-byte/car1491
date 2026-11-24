@@ -63,7 +63,7 @@ function uploadPhoto(file){
 
 function readForm(f,el){
   var d=new FormData(el);
-  f.model=(d.get("model")||"").trim();f.series=d.get("series");f.status=d.get("status");
+  f.model=(d.get("model")||"").trim();f.origin=d.get("origin");f.brand=(d.get("brand")||"").trim();f.series=d.get("series");f.status=d.get("status");
   f.year=(d.get("year")||"").trim();f.reg=(d.get("reg")||"").trim();f.mileage=(d.get("mileage")||"").trim();
   f.color=(d.get("color")||"").trim();f.price=(d.get("price")||"").trim();
   f.tags=(d.get("tags")||"").split(/[,，、]/).map(function(t){return t.trim()}).filter(Boolean);
@@ -73,6 +73,7 @@ function carForm(f){
   var opts=function(o,v){return o.map(function(x){return '<option'+(x===v?' selected':'')+'>'+esc(x)+'</option>'}).join("")};
   return '<div class="ov"><div class="dlg narrow"><form class="form" id="carform"><h2>'+(f.isNew?'新增車輛':'編輯車輛')+'</h2>'+
    '<label class="full">車款名稱<input name="model" required value="'+esc(f.model)+'" placeholder="例：BMW 320i M Sport"></label>'+
+   '<label>產地<select name="origin">'+opts(["國產","進口"],f.origin||"進口")+'</select></label><label>品牌<input name="brand" list="brands" value="'+esc(f.brand||"")+'" placeholder="例：Toyota"><datalist id="brands">'+Array.from(new Set(S.cars.map(function(c){return c.brand}).filter(Boolean))).map(function(b){return '<option value="'+esc(b)+'">'}).join("")+'</datalist></label>'+
    '<label>分類<select name="series">'+opts(SERIES,f.series)+'</select></label>'+
    '<label>狀態<select name="status">'+Object.keys(STATUS).map(function(k){return '<option value="'+k+'"'+(k===f.status?' selected':'')+'>'+STATUS[k]+'</option>'}).join("")+'</select></label>'+
    '<label>出廠年份<input name="year" inputmode="numeric" value="'+esc(f.year)+'" placeholder="2022"></label>'+
@@ -108,7 +109,7 @@ function render(){
   if(!S){root.innerHTML='<div class="pagew wrap" style="padding:24px 0"><p>'+esc(msg||"讀取中…")+'</p><button class="btn" data-act="logout">重新登入</button></div>';return}
   var cars=S.cars.slice().sort(function(a,b){return (b.created||0)-(a.created||0)});
   var h='<div class="pagew wrap"><div class="tb"><h1>車輛管理</h1><button class="btn" data-act="site">網站設定</button><button class="btn primary" data-act="new">＋新增車輛</button></div>'+
-   (cars.length?cars.map(function(c){return '<div class="arow">'+((c.photos&&c.photos[0])?'<img src="'+esc(thumb(c.photos[0]))+'" alt="">':'<img alt="">')+'<div class="t"><b>'+esc(c.model)+'</b><span>'+esc(c.series)+' · '+STATUS[c.status]+' · '+(c.price===""||c.price==null?'價格洽詢':c.price+' 萬')+'</span></div><button class="btn sm" data-act="edit" data-id="'+esc(c.id)+'">編輯</button><button class="btn sm danger" data-act="del" data-id="'+esc(c.id)+'">刪除</button></div>'}).join(""):'<p class="hint">還沒有車輛，按右上角「＋新增車輛」。</p>')+
+   (cars.length?cars.map(function(c){return '<div class="arow">'+((c.photos&&c.photos[0])?'<img src="'+esc(thumb(c.photos[0]))+'" alt="">':'<img alt="">')+'<div class="t"><b>'+esc(c.model)+'</b><span>'+esc((c.brand?c.brand+" · ":"")+c.series)+' · '+STATUS[c.status]+' · '+(c.price===""||c.price==null?'價格洽詢':c.price+' 萬')+'</span></div><button class="btn sm" data-act="edit" data-id="'+esc(c.id)+'">編輯</button><button class="btn sm danger" data-act="del" data-id="'+esc(c.id)+'">刪除</button></div>'}).join(""):'<p class="hint">還沒有車輛，按右上角「＋新增車輛」。</p>')+
    '<p class="hint"><a href="index.html" target="_blank">查看公開網站</a> · <button class="btn sm" data-act="logout">登出</button></p></div>'+
    '<div class="abar"><div class="wrap"><span class="msg">'+(msg?esc(msg):dirty?'有尚未儲存的變更。':'已是最新。')+'</span><button class="btn primary" data-act="save"'+((!dirty||busy)?' disabled':'')+'>儲存並發佈</button></div></div>';
   if(form)h+=carForm(form);
@@ -119,7 +120,7 @@ function render(){
 root.addEventListener("click",function(e){
   var t=e.target.closest("[data-act]");if(!t)return;var a=t.dataset.act;
   if(a==="logout"){localStorage.removeItem("gh_cfg");cfg=null;S=null;msg="";render()}
-  else if(a==="new"){form={isNew:true,id:uid(),model:"",series:"轎車",status:"sale",year:"",reg:"",mileage:"",color:"",price:"",tags:[],desc:"",photos:[]};render()}
+  else if(a==="new"){form={isNew:true,id:uid(),model:"",origin:"進口",brand:"",series:"轎車",status:"sale",year:"",reg:"",mileage:"",color:"",price:"",tags:[],desc:"",photos:[]};render()}
   else if(a==="edit"){var c=S.cars.filter(function(x){return x.id===t.dataset.id})[0];form=JSON.parse(JSON.stringify(c));form.price=c.price==null?"":String(c.price);render()}
   else if(a==="del"){if(t.dataset.sure){S.cars=S.cars.filter(function(x){return x.id!==t.dataset.id});dirty=true;msg="";render()}else{t.dataset.sure="1";t.textContent="再按一次確認"}}
   else if(a==="cancelform"){form=null;siteOpen=false;render()}
@@ -145,7 +146,7 @@ root.addEventListener("submit",function(e){
     if(!f.model){document.getElementById("ferr").textContent="請填寫車款名稱。";return}
     var num=function(v){if(v==="")return "";var n=Number(String(v).replace(/,/g,""));return isNaN(n)?"":n};
     var old=S.cars.filter(function(c){return c.id===f.id})[0];
-    var rec={id:f.id,model:f.model,series:f.series,status:f.status,year:f.year,reg:f.reg,mileage:num(f.mileage),color:f.color,price:num(f.price),tags:f.tags,desc:f.desc,photos:f.photos,created:(old&&old.created)||Date.now()};
+    var rec={id:f.id,model:f.model,origin:f.origin||"進口",brand:f.brand,series:f.series,status:f.status,year:f.year,reg:f.reg,mileage:num(f.mileage),color:f.color,price:num(f.price),tags:f.tags,desc:f.desc,photos:f.photos,created:(old&&old.created)||Date.now()};
     S.cars=old?S.cars.map(function(c){return c.id===rec.id?rec:c}):S.cars.concat(rec);
     form=null;dirty=true;msg="";render();
   }else if(id==="siteform"){
