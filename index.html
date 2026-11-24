@@ -78,20 +78,26 @@ function renderGrid(){
   else if(ui.fav&&FAV.length===0)empty='<div class="empty"><b>還沒有收藏的車</b>點車輛照片右上角的愛心，就能收藏喜歡的車。</div>';
   else empty='<div class="empty"><b>沒有符合的車</b>換個分類或清除搜尋看看。</div>';
   $("#grid").innerHTML=list.length?list.map(card).join(""):empty;
-  $("#count").textContent=list.length+" 台";
+  $("#count").textContent="共 "+list.length+" 台";
 }
-function chipRow(items,act,cur,labelFn){
-  return '<div class="row chips">'+items.map(function(x){return '<button type="button" class="chip" aria-pressed="'+(cur===x)+'" data-act="'+act+'" data-v="'+esc(x)+'">'+labelFn(x)+'</button>'}).join("")+'</div>';
-}
+function chip(act,v,label,on,extra){return '<button type="button" class="chip'+(extra||"")+'" aria-pressed="'+on+'" data-act="'+act+'" data-v="'+esc(v)+'">'+label+'</button>'}
 function renderChips(){
-  var brandRow="";
+  var bar=$("#fbar"),keep=bar.scrollLeft;
+  bar.innerHTML=["國產","進口"].map(function(x){return chip("origin",x,x,ui.origin===x)}).join("")+
+    '<i class="sep"></i>'+SERIES.map(function(x){return chip("series",x,esc(x),ui.series===x)}).join("")+
+    '<i class="sep"></i>'+["sale","soon","sold"].map(function(x){return chip("status",x,STATUS[x],ui.status===x)}).join("")+
+    '<i class="sep"></i><button type="button" class="chip favchip" aria-pressed="'+ui.fav+'" data-act="favview">♥ 收藏 <span class="num" data-favn>'+FAV.length+'</span></button>';
+  bar.scrollLeft=keep;
+  var br=$("#brandrow");
   if(ui.origin!=="全部"){var bc={};S.cars.forEach(function(c){if(c.origin===ui.origin&&c.brand)bc[c.brand]=(bc[c.brand]||0)+1});
     var bl=Object.keys(bc).sort(function(a,b){return bc[b]-bc[a]||(a<b?-1:1)});
-    brandRow=chipRow(["全部"].concat(bl),"brand",ui.brand,function(b){return b==="全部"?"全部品牌":esc(b)+" "+bc[b]})}
-  var st=chipRow(["all","sale","soon","sold"],"status",ui.status,function(x){return x==="all"?"全部":STATUS[x]});
-  st=st.replace('</div>','<button type="button" class="chip favchip" aria-pressed="'+ui.fav+'" data-act="favview">♥ 收藏 <span class="num" data-favn>'+FAV.length+'</span></button></div>');
-  $("#chips").innerHTML=chipRow(["全部","國產","進口"],"origin",ui.origin,function(x){return x==="全部"?"全部產地":x})+brandRow+chipRow(["全部"].concat(SERIES),"series",ui.series,esc)+st;
+    var bk=br.scrollLeft;
+    br.innerHTML=chip("brand","全部","全部品牌",ui.brand==="全部")+bl.map(function(b){return chip("brand",b,esc(b)+" "+bc[b],ui.brand===b)}).join("");
+    br.hidden=false;br.scrollLeft=bk}
+  else{br.hidden=true;br.innerHTML=""}
+  fixH();
 }
+function fixH(){var f=$(".fix");if(f)document.documentElement.style.setProperty("--fixh",f.offsetHeight+"px")}
 function syncFav(){
   var n=FAV.length;
   Array.prototype.forEach.call(document.querySelectorAll("[data-favn]"),function(e){e.textContent=n});
@@ -122,12 +128,13 @@ function renderShell(){
   var s=S.site;
   document.title=s.name;
   var tel=telHref(s.phone),ln=lineHref(s.line);
-  root.innerHTML='<header class="top"><div class="wrap"><div class="brand">'+esc(s.name)+'<small>'+esc(s.tagline)+'</small></div><nav><a href="#cars">車輛</a><a href="#loan">貸款試算</a><a href="#contact">聯絡</a></nav>'+
+  root.innerHTML='<div class="fix"><header class="top"><div class="wrap"><div class="brand">'+esc(s.name)+'<small>'+esc(s.tagline)+'</small></div>'+
+   '<input class="hsearch" id="q" type="search" placeholder="搜尋車款、車色" aria-label="搜尋車輛" enterkeyhint="search" autocomplete="off"><nav><a href="#cars">車輛</a><a href="#loan">貸款試算</a><a href="#contact">聯絡</a></nav>'+
    '<button type="button" class="hfav" data-act="favview" aria-pressed="false" aria-label="我的收藏">'+HEART+'<span class="num" data-favn>0</span></button></div></header>'+
+   '<div class="fbar" id="fbar" role="toolbar" aria-label="篩選車輛"></div><div class="fbar brandrow" id="brandrow" role="toolbar" aria-label="品牌" hidden></div></div>'+
    '<main class="wrap"><section class="hero"><h1>'+esc(s.heading||"找到你的下一台汽車")+'</h1><p>'+esc(s.tagline)+'。每台車都附照片與基本資料，看到喜歡的直接聯絡預約賞車。</p>'+
    '<div class="stats num" id="stats"></div></section>'+
-   '<section id="cars" class="filters"><div id="chips"></div><div class="row"><input class="search" id="q" type="search" placeholder="搜尋車款、車色、標籤" value="" aria-label="搜尋" enterkeyhint="search"><span class="count num" id="count"></span></div></section>'+
-   '<section class="grid" id="grid"></section>'+
+   '<section id="cars"><p class="listhead num" id="count"></p><div class="grid" id="grid"></div></section>'+
    '<section id="loan" class="band two"><div><h2>貸款試算</h2><p class="hint" style="margin:0 0 12px">輸入車價與頭期款，快速估算月付金額。</p>'+calcHtml()+'</div>'+
    '<div id="contact" class="contact"><h2>聯絡我們</h2><p class="about">'+esc(s.about)+'</p><dl>'+
    (s.phone?'<div><dt>電話</dt><dd class="num">'+(tel?'<a class="plain" href="'+esc(tel)+'">'+esc(s.phone)+'</a>':esc(s.phone))+'</dd></div>':'')+
@@ -210,10 +217,10 @@ root.addEventListener("click",function(e){
   var t=e.target.closest("[data-act]");if(!t)return;var a=t.dataset.act;
   if(a==="open"){openCar(t.dataset.id,true,t)}
   else if(a==="fav"){toggleFav(t.dataset.id)}
-  else if(a==="series"){ui.series=t.dataset.v;refresh()}
-  else if(a==="origin"){ui.origin=t.dataset.v;ui.brand="全部";refresh()}
-  else if(a==="brand"){ui.brand=t.dataset.v;refresh()}
-  else if(a==="status"){ui.status=t.dataset.v;refresh()}
+  else if(a==="series"){ui.series=ui.series===t.dataset.v?"全部":t.dataset.v;refresh()}
+  else if(a==="origin"){ui.origin=ui.origin===t.dataset.v?"全部":t.dataset.v;ui.brand="全部";refresh()}
+  else if(a==="brand"){ui.brand=(ui.brand===t.dataset.v&&t.dataset.v!=="全部")?"全部":t.dataset.v;refresh()}
+  else if(a==="status"){ui.status=ui.status===t.dataset.v?"all":t.dataset.v;refresh()}
   else if(a==="favview"){setFavView(!ui.fav)}
   else if(a==="tab"){if(t.dataset.t==="cars"&&ui.fav){ui.fav=false;refresh()}goTo(t.dataset.t)}
 });
@@ -245,6 +252,7 @@ document.addEventListener("keydown",function(e){
   else if(e.key==="Tab"){var f=dlgroot.querySelectorAll('button,a[href]');if(!f.length)return;var first=f[0],last=f[f.length-1];
     if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}
 });
+window.addEventListener("resize",fixH);window.addEventListener("load",fixH);
 window.addEventListener("popstate",function(){
   var m=/^#car=(.+)$/.exec(location.hash),id=m&&decodeURIComponent(m[1]);
   if(id&&byId(id))openCar(id,false);
