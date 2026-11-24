@@ -3,7 +3,7 @@
 :root{--tab-h:60px}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-[id]{scroll-margin-top:72px}
+[id]{scroll-margin-top:calc(var(--fixh,112px) + 10px)}
 html.lock,html.lock body{overflow:hidden}
 a.plain{color:inherit;text-decoration:none}
 button{-webkit-tap-highlight-color:transparent}
@@ -115,3 +115,23 @@ button{-webkit-tap-highlight-color:transparent}
 /* ---- 聯絡區電話連結 ---- */
 .contact dd a{color:inherit}
 .contact dd a.plain{text-decoration:none}
+
+/* ---- 固定在上方的區塊：店名 + 搜尋 + 篩選，只有車輛列表會捲動 ---- */
+.fix{position:sticky;top:env(safe-area-inset-top,0px);z-index:50;background:var(--ink);margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px)));padding:0 max(16px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--accent)}
+.fix .top{position:static;margin:0;padding:0;border:0;background:none}
+.fix .top .wrap{min-height:56px;gap:12px}
+.fix .brand{margin-right:0;padding:10px 0;flex:none}
+.fix .top nav{margin-left:auto}
+.hsearch{flex:1 1 140px;min-width:0;max-width:380px;height:38px;border:1px solid rgba(255,255,255,.25);border-radius:999px;background:#141414;color:var(--ink-fg);padding:0 16px;font-size:16px;-webkit-appearance:none;appearance:none}
+.hsearch::placeholder{color:var(--muted)}
+.hsearch:focus{border-color:var(--accent);outline:none}
+.fbar{display:flex;gap:8px;align-items:center;overflow-x:auto;padding:7px 0 9px;max-width:1160px;margin:0 auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+.fbar::-webkit-scrollbar{display:none}
+.fbar .chip{flex:none;min-height:34px;padding:3px 13px}
+.fbar[hidden]{display:none}
+.brandrow{border-top:1px solid var(--line)}
+.sep{flex:none;width:1px;height:20px;background:var(--line);margin:0 2px}
+.listhead{margin:0;padding:16px 0 0;color:var(--muted);font-size:13px}
+.grid{padding-top:12px}
+@media (max-width:860px){.hsearch{max-width:none}}
+@media (max-width:720px){.fix .brand{font-size:19px}}
