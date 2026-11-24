@@ -3,29 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="theme-color" content="#000000">
 <title>BMW 新安中古車</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="site.css">
 <style>body{margin:0}</style>
 </head>
 <body>
 <div id="root"><p style="padding:40px;color:#888">載入中…</p></div>
+<div id="dlgroot"></div>
+<noscript><p style="padding:40px;color:#ccc">請開啟瀏覽器的 JavaScript 功能以瀏覽車輛。</p></noscript>
 <script>
 (function(){
+"use strict";
+var BASE="";
 var SERIES=["轎車","掀背","旅行","休旅"];
 var STATUS={sale:"現售中",soon:"即將入庫",sold:"已售出"};
 var S={site:{name:"BMW 新安中古車",tagline:"",about:"",phone:"",line:"",address:"",hours:""},cars:[]};
-var root=document.getElementById("root");
-var ui={origin:"全部",brand:"全部",series:"全部",status:"all",q:"",open:null,photo:0};
+var root=document.getElementById("root"),dlgroot=document.getElementById("dlgroot");
+var ui={origin:"全部",brand:"全部",series:"全部",status:"all",q:"",fav:false};
+var dlg={id:null,i:0,opener:null,pushed:false};
+var FAV=loadFav();
+var HEART='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
 
+/* ---------- helpers ---------- */
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
-function img(n){return "images/"+encodeURIComponent(n)}
+function img(n){return BASE+"images/"+encodeURIComponent(n)}
+function thumb(n){return BASE+"thumbs/"+encodeURIComponent(n)}
+/* 縮圖拼接圖：檔名含照片清單的雜湊，後台改了照片順序就會自動對不上、改用原圖，不會顯示錯的圖 */
+function hash(s){var h=5381;for(var i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(16)}
+function stripUrl(c){return BASE+"thumbs/strip-"+encodeURIComponent(c.id)+"-"+hash((c.photos||[]).join("|"))+".jpg"}
 function fmtPrice(p){return (p===""||p==null||isNaN(p))?null:Number(p).toLocaleString("zh-TW",{maximumFractionDigits:1})}
 function fmtKm(k){return (k===""||k==null||isNaN(k))?"—":Number(k).toLocaleString("zh-TW")+" 公里"}
 function byId(id){return S.cars.filter(function(c){return c.id===id})[0]}
+function $(s,r){return (r||document).querySelector(s)}
+function loadFav(){try{var a=JSON.parse(localStorage.getItem("xa_fav")||"[]");return Array.isArray(a)?a.filter(function(x){return typeof x==="string"}):[]}catch(e){return[]}}
+function saveFav(){try{localStorage.setItem("xa_fav",JSON.stringify(FAV))}catch(e){}}
+function isFav(id){return FAV.indexOf(id)>-1}
+function telHref(p){var d=String(p||"").replace(/[^\d+]/g,"");return d?"tel:"+d:""}
+function lineHref(l){return /^https?:\/\//i.test(l||"")?l:""}
+
+/* ---------- data ---------- */
 function visible(){
   var order={sale:0,soon:1,sold:2};
   return S.cars.filter(function(c){
+    if(ui.fav&&!isFav(c.id))return false;
     if(ui.series!=="全部"&&c.series!==ui.series)return false;
     if(ui.origin!=="全部"&&c.origin!==ui.origin)return false;
     if(ui.brand!=="全部"&&c.brand!==ui.brand)return false;
@@ -34,26 +59,48 @@ function visible(){
     return true;
   }).sort(function(a,b){return (order[a.status]-order[b.status])||((b.created||0)-(a.created||0))});
 }
+
+/* ---------- card / grid ---------- */
+function favBtn(id,cls){var on=isFav(id);return '<button type="button" class="fav '+(cls||"")+'" data-act="fav" data-id="'+esc(id)+'" aria-pressed="'+on+'" aria-label="'+(on?"取消收藏":"加入收藏")+'">'+HEART+'</button>'}
 function card(c){
   var p=fmtPrice(c.price);
-  var cover=(c.photos&&c.photos[0])?'<img src="'+img(c.photos[0])+'" alt="'+esc(c.model)+'" loading="lazy">':'<span class="none">尚無照片</span>';
+  var cover=(c.photos&&c.photos[0])?'<img src="'+thumb(c.photos[0])+'" data-full="'+img(c.photos[0])+'" alt="'+esc(c.model)+'" loading="lazy" decoding="async">':'<span class="none">尚無照片</span>';
   var bcls=c.status==="soon"?" soon":c.status==="sold"?" sold":"";
-  return '<article class="card'+(c.status==="sold"?" sold":"")+'"><button class="ph" data-act="open" data-id="'+esc(c.id)+'" aria-label="查看 '+esc(c.model)+'">'+cover+'<span class="badge'+bcls+'">'+STATUS[c.status]+'</span></button>'+
+  return '<article class="card'+(c.status==="sold"?" sold":"")+'"><div class="ph"><button type="button" class="phb" data-act="open" data-id="'+esc(c.id)+'" aria-label="查看 '+esc(c.model)+'">'+cover+'<span class="badge'+bcls+'">'+STATUS[c.status]+'</span></button>'+favBtn(c.id)+'</div>'+
    '<div class="bd"><span class="series">'+esc((c.brand?c.brand+" · ":"")+c.series)+'</span><h3>'+esc(c.model)+'</h3>'+
    '<div class="meta num"><span>'+esc(c.year||"—")+' 年</span><span>'+fmtKm(c.mileage)+'</span>'+(c.color?'<span>'+esc(c.color)+'</span>':'')+'</div>'+
    '<div class="price num">'+(p?p+'<small>萬</small>':'<small>價格洽詢</small>')+'</div></div></article>';
 }
-function detail(c){
-  var ph=c.photos||[],cur=Math.min(ui.photo||0,Math.max(ph.length-1,0)),p=fmtPrice(c.price);
-  return '<div class="ov" data-act="close"><div class="dlg" role="dialog" aria-label="'+esc(c.model)+'"><button class="x" data-act="close" aria-label="關閉">×</button>'+
-   (ph.length?'<div class="gal"><img class="main" src="'+img(ph[cur])+'" alt="'+esc(c.model)+'"></div>'+(ph.length>1?'<div class="thumbs">'+ph.map(function(id,i){return '<button data-act="photo" data-i="'+i+'"'+(i===cur?' aria-current="true"':'')+' aria-label="第 '+(i+1)+' 張"><img src="'+img(id)+'" alt=""></button>'}).join("")+'</div>':''):'')+
-   '<div class="dbody"><div><span style="font:600 12px var(--font-display);letter-spacing:.12em;color:var(--accent)">'+esc((c.origin?c.origin+" · ":"")+(c.brand?c.brand+" · ":"")+c.series)+' · '+STATUS[c.status]+'</span><h2>'+esc(c.model)+'</h2></div>'+
-   '<div class="price num" style="font-size:36px">'+(p?p+'<small>萬</small>':'<small>價格洽詢</small>')+'</div>'+
-   '<dl class="spec num"><div><dt>出廠年份</dt><dd>'+esc(c.year||"—")+'</dd></div><div><dt>領牌年月</dt><dd>'+esc(c.reg||"—")+'</dd></div><div><dt>里程數</dt><dd>'+fmtKm(c.mileage)+'</dd></div><div><dt>車色</dt><dd>'+esc(c.color||"—")+'</dd></div></dl>'+
-   ((c.tags&&c.tags.length)?'<div class="tags">'+c.tags.map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join("")+'</div>':'')+
-   (c.desc?'<p class="desc">'+esc(c.desc)+'</p>':'')+
-   '<div class="row"><a class="btn primary" href="#contact" data-act="close">聯絡詢問這台車</a></div></div></div></div>';
+function renderGrid(){
+  var list=visible();
+  var empty;
+  if(S.cars.length===0)empty='<div class="empty"><b>車輛即將上架</b>請稍後再回來看看，或直接聯絡我們。</div>';
+  else if(ui.fav&&FAV.length===0)empty='<div class="empty"><b>還沒有收藏的車</b>點車輛照片右上角的愛心，就能收藏喜歡的車。</div>';
+  else empty='<div class="empty"><b>沒有符合的車</b>換個分類或清除搜尋看看。</div>';
+  $("#grid").innerHTML=list.length?list.map(card).join(""):empty;
+  $("#count").textContent=list.length+" 台";
 }
+function chipRow(items,act,cur,labelFn){
+  return '<div class="row chips">'+items.map(function(x){return '<button type="button" class="chip" aria-pressed="'+(cur===x)+'" data-act="'+act+'" data-v="'+esc(x)+'">'+labelFn(x)+'</button>'}).join("")+'</div>';
+}
+function renderChips(){
+  var brandRow="";
+  if(ui.origin!=="全部"){var bc={};S.cars.forEach(function(c){if(c.origin===ui.origin&&c.brand)bc[c.brand]=(bc[c.brand]||0)+1});
+    var bl=Object.keys(bc).sort(function(a,b){return bc[b]-bc[a]||(a<b?-1:1)});
+    brandRow=chipRow(["全部"].concat(bl),"brand",ui.brand,function(b){return b==="全部"?"全部品牌":esc(b)+" "+bc[b]})}
+  var st=chipRow(["all","sale","soon","sold"],"status",ui.status,function(x){return x==="all"?"全部":STATUS[x]});
+  st=st.replace('</div>','<button type="button" class="chip favchip" aria-pressed="'+ui.fav+'" data-act="favview">♥ 收藏 <span class="num" data-favn>'+FAV.length+'</span></button></div>');
+  $("#chips").innerHTML=chipRow(["全部","國產","進口"],"origin",ui.origin,function(x){return x==="全部"?"全部產地":x})+brandRow+chipRow(["全部"].concat(SERIES),"series",ui.series,esc)+st;
+}
+function syncFav(){
+  var n=FAV.length;
+  Array.prototype.forEach.call(document.querySelectorAll("[data-favn]"),function(e){e.textContent=n});
+  Array.prototype.forEach.call(document.querySelectorAll('.fav[data-id]'),function(b){var on=isFav(b.dataset.id);b.setAttribute("aria-pressed",on);b.setAttribute("aria-label",on?"取消收藏":"加入收藏")});
+  Array.prototype.forEach.call(document.querySelectorAll('[data-act="favview"]'),function(b){b.setAttribute("aria-pressed",ui.fav)});
+}
+function refresh(){renderChips();renderGrid();syncFav()}
+
+/* ---------- shell ---------- */
 function calcHtml(){
   return '<div class="calc"><label>車價（萬元）<input id="c_price" inputmode="decimal" value="120"></label><label>頭期款（萬元）<input id="c_down" inputmode="decimal" value="20"></label>'+
    '<label>年利率（%）<input id="c_rate" inputmode="decimal" value="2.5"></label><label>期數（月）<select id="c_n"><option>36</option><option>48</option><option selected>60</option><option>72</option><option>84</option></select></label>'+
@@ -68,59 +115,153 @@ function calc(){
   out.textContent="約 "+Math.round(m).toLocaleString("zh-TW")+" 元";
   sub.textContent="貸款本金 "+Math.round(P/10000*10)/10+" 萬，總利息約 "+Math.round((m*n-P)/10000*10)/10+" 萬。實際以銀行核貸為準，未含手續費。";
 }
-function render(){
-  var s=S.site,list=visible();
+var TAB_ICON={cars:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11l1.6-4.2A2 2 0 018.5 5.5h7a2 2 0 011.9 1.3L19 11M4 11h16v6H4zM7 17v2M17 17v2"/><circle cx="8" cy="14" r=".8"/><circle cx="16" cy="14" r=".8"/></svg>',
+  loan:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 7.5h7M8.5 12h2M13.5 12h2M8.5 16h2M13.5 16h2"/></svg>',
+  contact:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h4l1.5 4-2 1.2a11 11 0 006.3 6.3L16 13.5l4 1.5v4a2 2 0 01-2 2A15 15 0 013 6a2 2 0 012-2z"/></svg>'};
+function renderShell(){
+  var s=S.site;
   document.title=s.name;
-  var cnt=function(k){return S.cars.filter(function(c){return c.status===k}).length};
-  var chips=["全部"].concat(SERIES).map(function(x){return '<button class="chip" aria-pressed="'+(ui.series===x)+'" data-act="series" data-v="'+esc(x)+'">'+esc(x)+'</button>'}).join("");
-  var ogChips=["全部","國產","進口"].map(function(x){return '<button class="chip" aria-pressed="'+(ui.origin===x)+'" data-act="origin" data-v="'+x+'">'+(x==="全部"?"全部產地":x)+'</button>'}).join("");
-  var brandRow="";
-  if(ui.origin!=="全部"){var bc={};S.cars.forEach(function(c){if(c.origin===ui.origin&&c.brand)bc[c.brand]=(bc[c.brand]||0)+1});
-    var bl=Object.keys(bc).sort(function(a,b){return bc[b]-bc[a]||(a<b?-1:1)});
-    brandRow='<div class="row">'+['全部'].concat(bl).map(function(b){return '<button class="chip" aria-pressed="'+(ui.brand===b)+'" data-act="brand" data-v="'+esc(b)+'">'+(b==="全部"?"全部品牌":esc(b)+' '+bc[b])+'</button>'}).join("")+'</div>'}
-  var st=[["all","全部"],["sale","現售中"],["soon","即將入庫"],["sold","已售出"]].map(function(x){return '<button class="chip" aria-pressed="'+(ui.status===x[0])+'" data-act="status" data-v="'+x[0]+'">'+x[1]+'</button>'}).join("");
-  var empty=S.cars.length===0?'<div class="empty"><b>車輛即將上架</b>請稍後再回來看看，或直接聯絡我們。</div>':'<div class="empty"><b>沒有符合的車</b>換個分類或清除搜尋看看。</div>';
-  var html='<header class="top"><div class="wrap"><div class="brand">'+esc(s.name)+'<small>'+esc(s.tagline)+'</small></div><nav><a href="#cars">車輛</a><a href="#loan">貸款試算</a><a href="#contact">聯絡</a></nav></div></header>'+
+  var tel=telHref(s.phone),ln=lineHref(s.line);
+  root.innerHTML='<header class="top"><div class="wrap"><div class="brand">'+esc(s.name)+'<small>'+esc(s.tagline)+'</small></div><nav><a href="#cars">車輛</a><a href="#loan">貸款試算</a><a href="#contact">聯絡</a></nav>'+
+   '<button type="button" class="hfav" data-act="favview" aria-pressed="false" aria-label="我的收藏">'+HEART+'<span class="num" data-favn>0</span></button></div></header>'+
    '<main class="wrap"><section class="hero"><h1>'+esc(s.heading||"找到你的下一台汽車")+'</h1><p>'+esc(s.tagline)+'。每台車都附照片與基本資料，看到喜歡的直接聯絡預約賞車。</p>'+
-   '<div class="stats num"><div><b>'+cnt("sale")+'</b>現售中</div><div><b>'+cnt("soon")+'</b>即將入庫</div><div><b>'+cnt("sold")+'</b>已售出</div></div></section>'+
-   '<section id="cars" class="filters"><div class="row">'+ogChips+'</div>'+brandRow+'<div class="row">'+chips+'</div><div class="row">'+st+'<input class="search" id="q" type="search" placeholder="搜尋車款、車色、標籤" value="'+esc(ui.q)+'" aria-label="搜尋"><span class="count num">'+list.length+' 台</span></div></section>'+
-   '<section class="grid" id="grid">'+(list.length?list.map(card).join(""):empty)+'</section>'+
+   '<div class="stats num" id="stats"></div></section>'+
+   '<section id="cars" class="filters"><div id="chips"></div><div class="row"><input class="search" id="q" type="search" placeholder="搜尋車款、車色、標籤" value="" aria-label="搜尋" enterkeyhint="search"><span class="count num" id="count"></span></div></section>'+
+   '<section class="grid" id="grid"></section>'+
    '<section id="loan" class="band two"><div><h2>貸款試算</h2><p class="hint" style="margin:0 0 12px">輸入車價與頭期款，快速估算月付金額。</p>'+calcHtml()+'</div>'+
    '<div id="contact" class="contact"><h2>聯絡我們</h2><p class="about">'+esc(s.about)+'</p><dl>'+
-   (s.phone?'<div><dt>電話</dt><dd class="num">'+esc(s.phone)+'</dd></div>':'')+
-   (/^https?:\/\//i.test(s.line)?'<div><dt>LINE</dt><dd><a href="'+esc(s.line)+'" target="_blank" rel="noopener">加 LINE 詢問</a></dd></div>':'')+
+   (s.phone?'<div><dt>電話</dt><dd class="num">'+(tel?'<a class="plain" href="'+esc(tel)+'">'+esc(s.phone)+'</a>':esc(s.phone))+'</dd></div>':'')+
+   (ln?'<div><dt>LINE</dt><dd><a href="'+esc(ln)+'" target="_blank" rel="noopener noreferrer">加 LINE 詢問</a></dd></div>':'')+
    (s.hours?'<div><dt>服務時間</dt><dd>'+esc(s.hours)+'</dd></div>':'')+
    (s.address?'<div><dt>展示中心</dt><dd>'+esc(s.address)+'</dd></div>':'')+
-   '</dl></div></section></main><footer><div class="wrap">本網站為車輛展示頁，內容僅供參考，實際車況與價格以現場為準。</div></footer>';
-  if(ui.open&&byId(ui.open))html+=detail(byId(ui.open));
-  var qHad=document.activeElement&&document.activeElement.id==="q";
-  var ids=["c_price","c_down","c_rate","c_n"],cv=ids.map(function(i){var e=document.getElementById(i);return e?e.value:null});
-  root.innerHTML=html;
-  cv.forEach(function(v,i){if(v!==null)document.getElementById(ids[i]).value=v});
-  calc();
-  if(qHad){var q=document.getElementById("q");q.focus();q.setSelectionRange(q.value.length,q.value.length)}
+   '</dl></div></section></main><footer><div class="wrap">本網站為車輛展示頁，內容僅供參考，實際車況與價格以現場為準。</div></footer>'+
+   '<nav class="tabbar" aria-label="主選單"><button type="button" data-act="tab" data-t="cars" aria-current="true">'+TAB_ICON.cars+'<span>車輛</span></button>'+
+   '<button type="button" data-act="favview" aria-pressed="false" class="tfav">'+HEART+'<span>收藏 <em class="num" data-favn>0</em></span></button>'+
+   '<button type="button" data-act="tab" data-t="loan">'+TAB_ICON.loan+'<span>貸款</span></button>'+
+   '<button type="button" data-act="tab" data-t="contact">'+TAB_ICON.contact+'<span>聯絡</span></button></nav>';
+  var cnt=function(k){return S.cars.filter(function(c){return c.status===k}).length};
+  $("#stats").innerHTML='<div><b>'+cnt("sale")+'</b>現售中</div><div><b>'+cnt("soon")+'</b>即將入庫</div><div><b>'+cnt("sold")+'</b>已售出</div>';
+  calc();refresh();observeTabs();
 }
+function observeTabs(){
+  if(!("IntersectionObserver" in window))return;
+  var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)setTab(e.target.id)})},{rootMargin:"-45% 0px -50% 0px"});
+  ["cars","loan","contact"].forEach(function(id){var el=document.getElementById(id);if(el)io.observe(el)});
+}
+function setTab(id){
+  Array.prototype.forEach.call(document.querySelectorAll('.tabbar [data-act="tab"]'),function(b){if(b.dataset.t===id)b.setAttribute("aria-current","true");else b.removeAttribute("aria-current")});
+}
+function goTo(id){
+  var el=document.getElementById(id);if(!el)return;
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"});setTab(id);
+}
+function setFavView(on){ui.fav=on;refresh();goTo("cars")}
+
+/* ---------- detail dialog ---------- */
+function detailHtml(c){
+  var ph=c.photos||[],p=fmtPrice(c.price),s=S.site,tel=telHref(s.phone),ln=lineHref(s.line);
+  var gal=ph.length?'<div class="dgal"><div class="stage" id="stage"><img class="main" id="mainimg" src="'+img(ph[0])+'" alt="'+esc(c.model)+'" decoding="async">'+
+    (ph.length>1?'<button type="button" class="nav prev" data-act="prev" aria-label="上一張">‹</button><button type="button" class="nav next" data-act="next" aria-label="下一張">›</button>':'')+
+    '<span class="cnt num" id="cnt">1 / '+ph.length+'</span></div>'+
+    (ph.length>1?'<div class="thumbs" id="thumbs">'+ph.map(function(id,i){return '<button type="button" data-act="photo" data-i="'+i+'"'+(i===0?' aria-current="true"':'')+' aria-label="第 '+(i+1)+' 張"><img class="sp" src="'+stripUrl(c)+'" data-strip="1" data-full="'+img(id)+'" style="width:'+(ph.length*100)+'%;transform:translateX(-'+(i/ph.length*100)+'%)" alt="" decoding="async"></button>'}).join("")+'</div>':'')+'</div>':'<div class="dgal none">尚無照片</div>';
+  return '<div class="ov" data-act="close"><div class="dlg" role="dialog" aria-modal="true" aria-label="'+esc(c.model)+'">'+
+   '<div class="dtools"><div class="dtin">'+favBtn(c.id,"rbtn")+'<button type="button" class="rbtn x" data-act="close" aria-label="關閉">×</button></div></div>'+gal+
+   '<div class="dbody"><div class="dscroll"><div><span class="dkicker">'+esc((c.origin?c.origin+" · ":"")+(c.brand?c.brand+" · ":"")+c.series)+' · '+STATUS[c.status]+'</span><h2>'+esc(c.model)+'</h2></div>'+
+   '<div class="price num dprice">'+(p?p+'<small>萬</small>':'<small>價格洽詢</small>')+'</div>'+
+   '<dl class="spec num"><div><dt>出廠年份</dt><dd>'+esc(c.year||"—")+'</dd></div><div><dt>領牌年月</dt><dd>'+esc(c.reg||"—")+'</dd></div><div><dt>里程數</dt><dd>'+fmtKm(c.mileage)+'</dd></div><div><dt>車色</dt><dd>'+esc(c.color||"—")+'</dd></div></dl>'+
+   ((c.tags&&c.tags.length)?'<div class="tags">'+c.tags.map(function(t){return '<span class="tag">'+esc(t)+'</span>'}).join("")+'</div>':'')+
+   (c.desc?'<p class="desc">'+esc(c.desc)+'</p>':'')+'</div>'+
+   '<div class="dact">'+(tel?'<a class="btn primary" href="'+esc(tel)+'">撥打電話</a>':'')+(ln?'<a class="btn" href="'+esc(ln)+'" target="_blank" rel="noopener noreferrer">LINE 詢問</a>':'')+(!tel&&!ln?'<a class="btn primary" href="#contact" data-act="close">聯絡詢問這台車</a>':'')+'</div></div></div></div>';
+}
+function openCar(id,push,opener){
+  var c=byId(id);if(!c)return;
+  if(dlg.id){closeDlg(false)}
+  dlg.id=id;dlg.i=0;dlg.opener=opener||null;
+  dlgroot.innerHTML=detailHtml(c);
+  document.documentElement.classList.add("lock");
+  if(push){try{history.pushState({car:id},"","#car="+encodeURIComponent(id));dlg.pushed=true}catch(e){dlg.pushed=false}}
+  else dlg.pushed=false;
+  var x=$(".dlg .x",dlgroot);if(x)x.focus({preventScroll:true});
+  preload(1);
+}
+function closeDlg(userAction){
+  if(!dlg.id)return;
+  if(userAction&&dlg.pushed){dlg.pushed=false;history.back();return}
+  var op=dlg.opener;
+  dlg.id=null;dlgroot.innerHTML="";document.documentElement.classList.remove("lock");
+  if(/^#car=/.test(location.hash)){try{history.replaceState(null,"",location.pathname+location.search)}catch(e){}}
+  if(op&&document.body.contains(op))op.focus({preventScroll:true});
+}
+function preload(i){var c=byId(dlg.id);if(!c||!c.photos)return;var n=c.photos.length;[i,i+1].forEach(function(k){var u=c.photos[(k%n+n)%n];if(u){var im=new Image();im.src=img(u)}})}
+function setPhoto(i){
+  var c=byId(dlg.id);if(!c||!c.photos||!c.photos.length)return;
+  var n=c.photos.length;i=((i%n)+n)%n;dlg.i=i;
+  var m=$("#mainimg",dlgroot);if(m){m.src=img(c.photos[i])}
+  var cnt=$("#cnt",dlgroot);if(cnt)cnt.textContent=(i+1)+" / "+n;
+  var th=$("#thumbs",dlgroot);
+  if(th){Array.prototype.forEach.call(th.children,function(b,k){if(k===i)b.setAttribute("aria-current","true");else b.removeAttribute("aria-current")});
+    var b=th.children[i];if(b){var left=b.offsetLeft-(th.clientWidth-b.offsetWidth)/2;th.scrollTo({left:Math.max(0,left),behavior:"smooth"})}}
+  preload(i+1);
+}
+
+/* ---------- events ---------- */
 root.addEventListener("click",function(e){
   var t=e.target.closest("[data-act]");if(!t)return;var a=t.dataset.act;
-  if(a==="close"){if(e.target!==t&&t.classList.contains("ov"))return;ui.open=null;ui.photo=0;render()}
-  else if(a==="open"){ui.open=t.dataset.id;ui.photo=0;render()}
-  else if(a==="photo"){ui.photo=+t.dataset.i;render()}
-  else if(a==="series"){ui.series=t.dataset.v;render()}
-  else if(a==="origin"){ui.origin=t.dataset.v;ui.brand="全部";render()}
-  else if(a==="brand"){ui.brand=t.dataset.v;render()}
-  else if(a==="status"){ui.status=t.dataset.v;render()}
+  if(a==="open"){openCar(t.dataset.id,true,t)}
+  else if(a==="fav"){toggleFav(t.dataset.id)}
+  else if(a==="series"){ui.series=t.dataset.v;refresh()}
+  else if(a==="origin"){ui.origin=t.dataset.v;ui.brand="全部";refresh()}
+  else if(a==="brand"){ui.brand=t.dataset.v;refresh()}
+  else if(a==="status"){ui.status=t.dataset.v;refresh()}
+  else if(a==="favview"){setFavView(!ui.fav)}
+  else if(a==="tab"){if(t.dataset.t==="cars"&&ui.fav){ui.fav=false;refresh()}goTo(t.dataset.t)}
 });
+function toggleFav(id){var k=FAV.indexOf(id);if(k>-1)FAV.splice(k,1);else FAV.push(id);saveFav();syncFav();if(ui.fav&&!dlg.id)renderGrid()}
+dlgroot.addEventListener("click",function(e){
+  var t=e.target.closest("[data-act]");if(!t)return;var a=t.dataset.act;
+  if(a==="close"){if(t.classList.contains("ov")&&e.target!==t)return;closeDlg(true)}
+  else if(a==="fav"){toggleFav(t.dataset.id)}
+  else if(a==="photo"){setPhoto(+t.dataset.i)}
+  else if(a==="prev"){setPhoto(dlg.i-1)}
+  else if(a==="next"){setPhoto(dlg.i+1)}
+});
+var tx=0,ty=0;
+dlgroot.addEventListener("touchstart",function(e){if(e.target.closest("#stage")){tx=e.touches[0].clientX;ty=e.touches[0].clientY}else tx=0},{passive:true});
+dlgroot.addEventListener("touchend",function(e){
+  if(!tx||!e.changedTouches.length)return;var dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;tx=0;
+  if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.4){setPhoto(dlg.i+(dx<0?1:-1))}
+},{passive:true});
 root.addEventListener("input",function(e){
-  if(e.target.id==="q"){ui.q=e.target.value;var l=visible();document.getElementById("grid").innerHTML=l.length?l.map(card).join(""):'<div class="empty"><b>沒有符合的車</b>換個分類或清除搜尋看看。</div>';document.querySelector(".count").textContent=l.length+" 台";return}
+  if(e.target.id==="q"){ui.q=e.target.value;renderGrid();return}
   if(/^c_/.test(e.target.id))calc();
 });
 root.addEventListener("change",function(e){if(e.target.id==="c_n")calc()});
-document.addEventListener("keydown",function(e){if(e.key==="Escape"&&ui.open){ui.open=null;render()}});
+document.addEventListener("keydown",function(e){
+  if(!dlg.id)return;
+  if(e.key==="Escape")closeDlg(true);
+  else if(e.key==="ArrowLeft")setPhoto(dlg.i-1);
+  else if(e.key==="ArrowRight")setPhoto(dlg.i+1);
+  else if(e.key==="Tab"){var f=dlgroot.querySelectorAll('button,a[href]');if(!f.length)return;var first=f[0],last=f[f.length-1];
+    if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}}
+});
+window.addEventListener("popstate",function(){
+  var m=/^#car=(.+)$/.exec(location.hash),id=m&&decodeURIComponent(m[1]);
+  if(id&&byId(id))openCar(id,false);
+  else if(dlg.id){dlg.pushed=false;closeDlg(false)}
+});
+/* 縮圖檔不存在時（例如後台新傳的車）自動改用原圖 */
+document.addEventListener("error",function(e){var t=e.target;if(!t||t.tagName!=="IMG"||!t.dataset.full||t.src.indexOf(t.dataset.full)>=0)return;
+  if(t.dataset.strip){t.removeAttribute("style");t.classList.remove("sp");t.removeAttribute("data-strip")}
+  t.src=t.dataset.full},true);
 
-fetch("cars.json?t="+Date.now()).then(function(r){return r.ok?r.json():null}).then(function(d){
+fetch(BASE+"cars.json?t="+Date.now()).then(function(r){return r.ok?r.json():null}).then(function(d){
   if(d&&d.cars){S=d;S.site=Object.assign({name:"BMW 新安中古車",tagline:"",about:"",phone:"",line:"",address:"",hours:""},d.site||{})}
-  render();
-}).catch(function(){render()});
+  FAV=FAV.filter(function(id){return byId(id)});saveFav();
+  renderShell();
+  var m=/^#car=(.+)$/.exec(location.hash);
+  if(m){var id=decodeURIComponent(m[1]);if(byId(id))openCar(id,false)}
+}).catch(function(){renderShell()});
 })();
 </script>
 </body>
