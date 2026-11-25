@@ -54,7 +54,7 @@ function visible(){
     if(ui.series!=="全部"&&c.series!==ui.series)return false;
     if(ui.origin!=="全部"&&c.origin!==ui.origin)return false;
     if(ui.brand!=="全部"&&c.brand!==ui.brand)return false;
-    if(ui.status!=="all"&&c.status!==ui.status)return false;
+    if(ui.status!=="all"&&c.status!==ui.status)return false;if(ui.status==="all"&&c.status==="sold")return false;
     if(ui.q){var t=(c.model+" "+c.color+" "+(c.tags||[]).join(" ")+" "+c.series+" "+(c.brand||"")+" "+(c.origin||"")).toLowerCase();if(t.indexOf(ui.q.toLowerCase())<0)return false}
     return true;
   }).sort(function(a,b){return (order[a.status]-order[b.status])||((b.created||0)-(a.created||0))});
